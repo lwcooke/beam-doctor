@@ -7,14 +7,9 @@ Created on Tue Aug 27 12:51:04 2019
 
 Functions for choosing lenses to correct a measured beam profile, using a
 two-lens telescope configuration.
-
-Required Packages:
-    colorama : conda install -c anaconda colorama
-    prettytable : conda install -c conda-forge prettytable
 """
 
 import numpy as np
-from colorama import Fore
 from prettytable import PrettyTable
 from scipy.stats import linregress
 
@@ -118,71 +113,73 @@ def tryall( ri, configs ):
 
     return rf
 
-def filterall( rf, configs, rmax, themax ):
+def filterall( rf, configs, rmax, themax, rmin=0 ):
     '''
     Specify the maximum allowed beam radius and divergence half-angle, and this
     function will sort through the input set of lens configurations and corresponding
     output beam profiles, and return those that meet specifications.
-
+    
     Parameters:
         rf : List of output beam profiles, numpy array, [radius, angle].
         configs : List of telescope lens configurations, numpy array, [f1, f2, d].
         rmax : Maximum allowed beam radius.
         themax : Maximum allowed divergence half-angle.
-
+        rmin : minimum beam radius, not required. Default is 0.
+        
     Returns:
         rf_good : List of output beam profiles which match specifications, numpy array,
             [radius, angle]
         configs_good : List of telescope lens configurations corresponding to the list
             of accepted beam profiles, numpy array, [f1, f2, d].
     '''
-
+    
     num = len( rf[:,0] ) #Number of outputs to filter through
     configs_good = np.empty( (0,3) ) #Empty row array, 3 columns
     rf_good = np.empty( (0,2) ) #Empty row array, 2 columns
-
+    
     for i in range(num):
         'For all output beam-profiles/configurations'
-        if rf[i,0] <= rmax and abs(rf[i,1]) <= themax:
-            'If the radius & angle are leass than desired value'
+        if (rf[i,0] <= rmax and rf[i,0]>=rmin) and abs(rf[i,1]) <= themax:
+            'If the radius & angle are less than desired value'
             configs_good = np.append(configs_good, [configs[i,:]], axis=0) #Keep config.
-            rf_good = np.append(rf_good, [rf[i,:]], axis=0) #Keep beam-profile
-
+            rf_good = np.append(rf_good, [rf[i,:]], axis=0) #Keep beam-profile 
+            
     return rf_good, configs_good
 
-def beamdoctor( ri, f1s, f2s, rmax, thetamax, dpm=0 ):
+def beamdoctor( ri, f1s, f2s, rmax, thetamax, dpm=0, rmin=0 ):
     '''
-    For a given input beam profile and lists of lenses to try in a telescope
+    For a given input beam profile and lists of lenses to try in a telescope 
     configuration, this function will determine all the possible outputs that will
     result in a beam radius and half angle less than a specified amount. Optionally,
-    the distances between the lenses can be modified to try configurations within a
+    the distances between the lenses can be modified to try configurations within a 
     range specified by "dpm" (see below).
-
+    
     Parameters:
         ri : Input beam profile, numpy array, [radius, angle].
         f1s, f2s : List of lens focal lengths to try, numpy arrays, can be positive or
             negative.
         rmax, thetamax : Maximum allowed output beam radius and half-angle.
-        dpm : "Distance plus/minus", by default is 0. Represents how far on each side
-            of f1+f2 to place lenses. So for a given dpm, many distances between
-            f1 + f2 +/- dpm will be added as new configurations, representing how one
-            could put the second lens a slightly smaller or larger distance away
-            from the f1 + f2 recomendation for collimated input; this provides
+        dpm : "Distance plus/minus", by default is 0. Represents how far on each side 
+            of f1+f2 to place lenses. So for a given dpm, many distances between 
+            f1 + f2 +/- dpm will be added as new configurations, representing how one 
+            could put the second lens a slightly smaller or larger distance away 
+            from the f1 + f2 recomendation for collimated input; this provides 
             more flexibility for uncollimated inputs.
+        rmin : Minimum allowed beam radius, not required. Default is 0.
     '''
-
+    
     #----- Generate Output -----
     telescopes = lensconfigs( f1s, f2s, dpm=dpm ) #Get all configurations
     rfs = tryall( ri, telescopes ) #Get all output beam-profiles
-    rfs, telescopes = filterall( rfs, telescopes, rmax, thetamax ) #Filter through
-
+    rfs, telescopes = filterall( rfs, telescopes, rmax, thetamax, rmin=rmin ) #Filter through
+    
     #----- Make a Table -----
-    t = PrettyTable([ Fore.CYAN + 'Radius [mm]' + Fore.RESET, \
-                     Fore.CYAN + 'Theta [deg]' + Fore.RESET, \
-                     Fore.CYAN + 'f1 [mm]' + Fore.RESET, \
-                     Fore.CYAN + 'f2 [mm]' + Fore.RESET,\
-                     Fore.CYAN + 'd [mm]' + Fore.RESET ])
-
+    t = PrettyTable([ 'Radius [mm]' ,\
+                     'Theta [deg]' ,\
+                     'f1 [mm]' ,\
+                     'f2 [mm]' ,\
+                     'd [mm]' ])
+        
     num = len(rfs[:,0]) #Number of good beam-profiles/configs.
     for i in range(num):
         'For each good beam-profile/config'
